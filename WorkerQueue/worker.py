@@ -12,10 +12,13 @@ import os
 import time
 from common import connect, log, ensure_schema
 
+
+# 環境変数で設定できるパラメータ
 POLL_SECONDS = 1
 WORK_SECONDS = float(os.getenv("WORK_SECONDS", "2"))   # 重い処理のまね（CP-SAT や LLM の待ち時間）
 STUCK_SECONDS = int(os.getenv("STUCK_SECONDS", "10"))  # 処理中のまま、これ以上たったら「落ちた」とみなす
 WORKER_NAME = os.getenv("WORKER_NAME", f"worker-{os.getpid()}")
+
 
 # 仕事を1件取る。条件:
 #   ・待ち（waiting）である
@@ -44,10 +47,10 @@ RETURNING id, case_id, event
 """
 
 
+# 仕事を完了させる
 def finish(conn, job_id, case_id, event):
-    """状態を進める ＋ 仕事を完了にする。この2つは、まとめて確定する（片方だけ進まない）。"""
     from states import next_state
-
+    # transaction(): 状態を進める ＋ 仕事を完了にする。この2つは、まとめて確定する（片方だけ進まない）。
     with conn.transaction():
         row = conn.execute("SELECT state FROM cases WHERE id = %s FOR UPDATE", (case_id,)).fetchone()
         current = row[0]
@@ -61,6 +64,7 @@ def finish(conn, job_id, case_id, event):
 
 
 def main():
+    # ensure_schema(): DBのスキーマを確認し、必要に応じて更新する。
     ensure_schema()
     log(WORKER_NAME, f"起動。1件の処理に約{WORK_SECONDS}秒かかる設定")
     with connect() as conn:
