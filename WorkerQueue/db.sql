@@ -1,4 +1,5 @@
 -- 案件（シフト1件）。state が「いまどの段階か」
+-- NOT EXISTS: 既に存在する場合は何もしない
 CREATE TABLE IF NOT EXISTS cases (
     id         SERIAL PRIMARY KEY,
     name       TEXT NOT NULL,
@@ -9,6 +10,7 @@ CREATE TABLE IF NOT EXISTS cases (
 -- 予約表（スケジューラーが見る）。「この時刻に、この案件へ、この合図を出す」
 CREATE TABLE IF NOT EXISTS schedules (
     id      SERIAL PRIMARY KEY,
+    -- REFERENCES: 外部キー制約。cases.id が存在しない場合はエラーになる
     case_id INT NOT NULL REFERENCES cases(id),
     event   TEXT NOT NULL,
     fire_at TIMESTAMPTZ NOT NULL,
