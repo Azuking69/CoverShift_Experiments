@@ -1,0 +1,6 @@
+bedrock-agentcore
+langgraph
+langgraph-checkpoint-aws
+boto3
+ortools
+anthropic

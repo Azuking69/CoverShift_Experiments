@@ -1,0 +1,6 @@
+{
+  "dependencies": ["."],
+  "graphs": { "covershift": "./v1_agentserver/entry.py:graph" },
+  "python_version": "3.12",
+  "env": "docker.env"
+}

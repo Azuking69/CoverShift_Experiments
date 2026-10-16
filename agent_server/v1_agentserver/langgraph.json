@@ -1,0 +1,6 @@
+{
+  "dependencies": ["."],
+  "graphs": { "covershift": "./entry.py:graph" },
+  "python_version": "3.13",
+  "env": "../.env"
+}

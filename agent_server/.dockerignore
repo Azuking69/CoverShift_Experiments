@@ -1,0 +1,11 @@
+.venv
+.git
+build_agentcore
+.langgraph_api
+__pycache__
+*.pyc
+outbound.log
+.env
+v2_aws
+tests
+*.zip

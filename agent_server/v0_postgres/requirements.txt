@@ -1,0 +1,5 @@
+langgraph
+langgraph-checkpoint-postgres
+psycopg[binary]
+ortools
+anthropic
