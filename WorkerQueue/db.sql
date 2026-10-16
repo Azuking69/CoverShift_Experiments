@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS queue (
     case_id    INT NOT NULL REFERENCES cases(id),
     event      TEXT NOT NULL,
     status     TEXT NOT NULL DEFAULT 'waiting',
-    locked_at  TIMESTAMPTZ,
+    locked_at  TIMESTAMPTZ,            -- ワーカーが取った時刻
+    done_at    TIMESTAMPTZ,            -- 処理が終わった時刻
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

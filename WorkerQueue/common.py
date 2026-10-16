@@ -14,3 +14,9 @@ def connect():
 
 def log(role: str, message: str):
     print(f"{time.strftime('%H:%M:%S')} [{role}] {message}", flush=True)
+
+
+def ensure_schema():
+    """あとから足した列を、古い DB にも足す（何回実行しても安全）。api / worker / scheduler の起動時に呼ぶ。"""
+    with connect() as conn:
+        conn.execute("ALTER TABLE queue ADD COLUMN IF NOT EXISTS done_at TIMESTAMPTZ")
