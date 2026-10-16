@@ -21,7 +21,9 @@ def call(method, path, body=None):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(BASE + path, data=data, method=method,
                                  headers={"Content-Type": "application/json"})
+    # urlopen(): HTTPリクエストを送信し、レスポンスを取得する。JSONレスポンスを辞書に変換して返す。
     with urllib.request.urlopen(req) as r:
+        # loads(): JSON文字列をPythonの辞書に変換する。r.read() はバイト列なので、decode() で文字列に変換する。
         return json.loads(r.read())
 
 
@@ -38,9 +40,11 @@ def kill_tree(p):
         subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     else:
+        # kill(): プロセスにシグナルを送る。SIGTERM は「終了要求」。子プロセスも止める。
         p.kill()
 
 
+# 待つ。cond が True になるまで待つ。timeout 秒でタイムアウト。
 def wait(cond, timeout):
     t = time.time()
     while time.time() - t < timeout:
@@ -50,10 +54,12 @@ def wait(cond, timeout):
     return None
 
 
+# 指定した条件が True なら OK、False なら NG と表示する。
 def check(label, ok):
     print(("  OK  " if ok else "  NG  ") + label)
 
 
+# 代替ワーカーが仕事を取り直すのを待つ。timeout 秒でタイムアウト。
 try:
     print("⑤ 処理中にワーカーが落ちたら、別のワーカーがやり直す")
     c = call("POST", "/cases", {"name": "落ちるテスト"})["id"]
@@ -80,11 +86,15 @@ try:
     time.sleep(6)
     stopped = call("GET", f"/cases/{c2}")["state"] == "collecting"
     check("スケジューラー停止中は 'collecting' のまま（締切は過ぎている）", stopped)
+    
+    # start(): スケジューラーを起動する。wait(): 指定した条件が True になるまで待つ。timeout 秒でタイムアウト。
     if not stopped:
         print("      ※ 別のスケジューラーが動いています。止めてからやり直してください")
     start("scheduler.py")
     t = wait(lambda: call("GET", f"/cases/{c2}")["state"] == "reviewing", 30)
     check("スケジューラーを起動したら 'reviewing' になった" + (f"（{t:.0f}秒後）" if t else ""), t is not None)
+
+# kill_tree(): ワーカーとスケジューラーを止める。Windows では子プロセスまで確実に止める。
 finally:
     for p in procs:
         kill_tree(p)
