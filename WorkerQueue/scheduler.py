@@ -26,12 +26,19 @@ INSERT INTO queue(case_id, event)
 SELECT case_id, event FROM upd ORDER BY fire_at
 RETURNING case_id, event
 """
+# ==========================
+# WITH due AS: 予約表から、締切が来たものを選ぶ。
+# fire_at: 予約表の fire_at <= now() のものを選ぶ。締切が来たもの。
+# s: schedules の行を upd に更新する。fired = true にする。
+# ==========================
+
 
 
 def main():
     log("scheduler", f"起動。{POLL_SECONDS}秒ごとに予約表を見る")
     with connect() as conn:
         while True:
+            # fetchall() で、締切が来た案件の case_id と event を返す。なければ空リスト。
             for case_id, event in conn.execute(MOVE_DUE_SQL).fetchall():
                 log("scheduler", f"締切が来た → キューへ: 案件{case_id} の合図 '{event}'")
             time.sleep(POLL_SECONDS)
