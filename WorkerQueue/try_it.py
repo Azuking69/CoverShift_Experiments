@@ -10,14 +10,19 @@ import urllib.request
 BASE = "http://localhost:8000"
 
 
+# API を呼び出す。body が None なら GET、そうでなければ POST する
 def call(method, path, body=None):
+    # dumps(): JSON に変換して、バイト列にする。None なら空にする。
+    # encode(): バイト列に変換する。None なら空にする。
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(BASE + path, data=data, method=method,
                                  headers={"Content-Type": "application/json"})
+    # r: HTTPResponse オブジェクト。read() でレスポンスの本文を読み込む
     with urllib.request.urlopen(req) as r:
         return json.loads(r.read())
 
 
+# 指定した案件の状態が、want になるまで待つ。タイムアウトは timeout 秒
 def wait_state(case_id, want, timeout=40):
     end = time.time() + timeout
     while time.time() < end:
@@ -32,8 +37,13 @@ def check(label, ok):
 
 
 print("① 基本の流れ：締切 → 検討 → 承認待ち → 終了")
+
+# call(): API を呼び出す。戻り値は JSON を Python の dict に変換したもの
 c = call("POST", "/cases", {"name": "10月 第2週シフト"})["id"]
 call("POST", f"/cases/{c}/deadline", {"seconds": 3})
+
+# check(): 指定した条件が True なら OK、False なら NG と表示する
+# wait_state(): 指定した案件の状態が、want になるまで待つ。タイムアウトは timeout 秒
 check("締切の3秒後に、スケジューラー→キュー→ワーカーを通って 'reviewing' になる", wait_state(c, "reviewing"))
 call("POST", f"/cases/{c}/events", {"event": "review_done"})
 check("review_done で 'waiting_approval' になる", wait_state(c, "waiting_approval"))
