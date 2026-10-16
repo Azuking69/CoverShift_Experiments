@@ -1,0 +1,55 @@
+INFO:     Started server process [9408]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8097 (Press CTRL+C to quit)
+INFO:     127.0.0.1:55615 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55626 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55631 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55636 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55641 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55646 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55653 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55661 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55665 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55670 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55675 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55680 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55682 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55687 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55692 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55700 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55705 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55710 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55720 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55736 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55742 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55748 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55754 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55758 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55766 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55770 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55775 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55780 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55785 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55796 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55800 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55808 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55815 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55821 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55827 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55831 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55836 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55839 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55846 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55853 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55860 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55869 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55875 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55880 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55887 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55893 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55897 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55149 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:57332 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:57338 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:57344 - "POST /api/v1/shift/start HTTP/1.1" 202 Accepted

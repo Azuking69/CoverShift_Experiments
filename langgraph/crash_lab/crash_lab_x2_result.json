@@ -1,0 +1,163 @@
+{
+ "pkg": "covershift_prototype_v6_min",
+ "results": [
+  {
+   "label": "D",
+   "thread": "x2D-202610",
+   "run_after": {
+    "status": "PAUSED_FOR_APPROVAL",
+    "current_status": "S4_説明生成完了",
+    "error": null
+   },
+   "jobs_after": [
+    {
+     "id": 1,
+     "kind": "start",
+     "status": "done",
+     "attempts": 1
+    }
+   ],
+   "solver_runs": 1,
+   "resume_answers": [],
+   "intervals": [
+    {
+     "pid": 24092,
+     "job": 1,
+     "kind": "start",
+     "attempt": 1,
+     "sec": 8.4,
+     "result": "handle_end"
+    }
+   ],
+   "overlapping_pairs": 0,
+   "graph_state": {
+    "retry_count": 0,
+    "manager_approved": null,
+    "status": "S4_説明生成完了",
+    "next": [
+     "manager_review"
+    ]
+   }
+  },
+  {
+   "label": "E",
+   "thread": "x2E-202610",
+   "run_after": {
+    "status": "PAUSED_FOR_APPROVAL",
+    "current_status": "S4_説明生成完了",
+    "error": null
+   },
+   "jobs_after": [
+    {
+     "id": 1,
+     "kind": "start",
+     "status": "done",
+     "attempts": 1
+    },
+    {
+     "id": 2,
+     "kind": "start",
+     "status": "done",
+     "attempts": 1
+    }
+   ],
+   "solver_runs": 1,
+   "resume_answers": [],
+   "intervals": [
+    {
+     "pid": 20424,
+     "job": 1,
+     "kind": "start",
+     "attempt": 1,
+     "sec": 4.4,
+     "result": "handle_end"
+    },
+    {
+     "pid": 20424,
+     "job": 2,
+     "kind": "start",
+     "attempt": 1,
+     "sec": 0.1,
+     "result": "handle_end"
+    }
+   ],
+   "overlapping_pairs": 0,
+   "graph_state": {
+    "retry_count": 0,
+    "manager_approved": null,
+    "status": "S4_説明生成完了",
+    "next": [
+     "manager_review"
+    ]
+   }
+  },
+  {
+   "label": "F",
+   "thread": "x2F-202610",
+   "run_after": {
+    "status": "REJECTED",
+    "current_status": "S5_確認完了",
+    "error": null
+   },
+   "jobs_after": [
+    {
+     "id": 1,
+     "kind": "start",
+     "status": "done",
+     "attempts": 1
+    },
+    {
+     "id": 2,
+     "kind": "resume",
+     "status": "done",
+     "attempts": 1
+    },
+    {
+     "id": 3,
+     "kind": "resume",
+     "status": "done",
+     "attempts": 1
+    }
+   ],
+   "solver_runs": 2,
+   "resume_answers": [
+    false,
+    false
+   ],
+   "intervals": [
+    {
+     "pid": 14332,
+     "job": 1,
+     "kind": "start",
+     "attempt": 1,
+     "sec": 4.4,
+     "result": "handle_end"
+    },
+    {
+     "pid": 13024,
+     "job": 2,
+     "kind": "resume",
+     "attempt": 1,
+     "sec": 4.4,
+     "result": "handle_end"
+    },
+    {
+     "pid": 13024,
+     "job": 3,
+     "kind": "resume",
+     "attempt": 1,
+     "sec": 0.3,
+     "result": "handle_end"
+    }
+   ],
+   "overlapping_pairs": 0,
+   "graph_state": {
+    "retry_count": 2,
+    "manager_approved": false,
+    "status": "S5_確認完了",
+    "next": []
+   },
+   "solver_runs_before_resume": 1
+  }
+ ]
+}
