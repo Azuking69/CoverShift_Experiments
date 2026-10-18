@@ -1,0 +1,13 @@
+# PostgreSQL だけを立てる。ポートは 5433（本体リポジトリの DB と衝突させないため）
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: wq
+      POSTGRES_PASSWORD: wq
+      POSTGRES_DB: wq
+    ports:
+      - "5433:5432"
+    volumes:
+      # 初回起動時だけ、テーブルを自動で作る
+      - ./db.sql:/docker-entrypoint-initdb.d/db.sql
