@@ -1,9 +1,9 @@
-from typing import TypedDict
+from typing import TypedDict 
 from langgraph.graph import StateGraph, START, END
 
 
 # 1) state 型の定義
-class State(TypedDict):
+class State(TypedDict): # TypedDict: 決まった項目だけを持つ辞書
     name: str
     greeting: str
 
@@ -15,6 +15,7 @@ def make_greeting(state:State) -> dict:
     return {"greeting": "안녕하세요, " + state["name"]}
 
 def add_mark(state: State) -> dict:
+    # 変えたいところだけを返す
     print("[add_mark] greeting = ", state["greeting"])
     return {"greeting": state["greeting"] + "님!"}
 
