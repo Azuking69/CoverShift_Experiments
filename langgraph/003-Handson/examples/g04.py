@@ -10,16 +10,16 @@ def talk(state: MessagesState):
 
 
 # 3) グラフ作成
-graph = StateGraph(MessagesState)
-graph.add_node("talk", talk)
+builder = StateGraph(MessagesState)
+builder.add_node("talk", talk)
 
 
 # 4) グラフのつなぎ
-graph.add_edge(START, "talk")
-graph.add_edge("talk", END)
+builder.add_edge(START, "talk")
+builder.add_edge("talk", END)
 
 
 # 5) 実行結果の表示
-out = graph.compile().invoke({"messages": [HumanMessage("안녕")]}) # 履歴に HumanMessage を追加して実行
+out = builder.compile().invoke({"messages": [HumanMessage("안녕")]}) # 履歴に HumanMessage を追加して実行
 for msg in out["messages"]:
     print(type(msg).__name__, "|", msg.content) # __name__ でクラス名を取得
