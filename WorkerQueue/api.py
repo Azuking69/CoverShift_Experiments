@@ -4,7 +4,9 @@
 """
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from common import connect
+from common import connect, ensure_schema
+
+ensure_schema()
 
 app = FastAPI(title="WorkerQueue")
 
@@ -82,4 +84,4 @@ def get_case(case_id: int):
 @app.get("/queue")
 def list_queue():
     with connect() as conn:
-        return _all(conn, "SELECT id, case_id, event, status FROM queue ORDER BY id")
+        return _all(conn, "SELECT id, case_id, event, status, locked_at, done_at FROM queue ORDER BY id")

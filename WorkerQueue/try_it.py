@@ -1,6 +1,6 @@
 """動作確認スクリプト。api / scheduler / worker を起動してから実行する。
 
-  python try_it.py          …… ①基本の流れ と ②順番 を確かめる
+  python try_it.py          …… ①基本 ②順番 ③二重 ④同時処理（ワーカーを2つ動かしておく）
 標準ライブラリだけで動く（追加のインストール不要）。
 """
 import json
@@ -53,3 +53,25 @@ for ev in ["deadline", "deadline"]:
     call("POST", f"/cases/{c3}/events", {"event": ev})
 check("状態は 'reviewing' のまま（2回目で進みすぎない）", wait_state(c3, "reviewing") and (time.sleep(8) or
       call("GET", f"/cases/{c3}")["state"] == "reviewing"))
+
+print("④ 同時処理：2つの案件を同時に流すと、2つのワーカーが重なって処理する")
+print("   （ワーカーを2つ動かしていないと NG になります。1つなら重なりません）")
+from datetime import datetime
+ca = call("POST", "/cases", {"name": "同時A"})["id"]
+cb = call("POST", "/cases", {"name": "同時B"})["id"]
+call("POST", f"/cases/{ca}/events", {"event": "deadline"})
+call("POST", f"/cases/{cb}/events", {"event": "deadline"})
+check("両方とも 'reviewing' になった", wait_state(ca, "reviewing") and wait_state(cb, "reviewing"))
+time.sleep(1)
+
+
+def span(case_id):
+    # その案件の仕事が「取られた時刻」と「終わった時刻」。重なりを、あとから時刻で調べる（見逃さない）
+    r = [x for x in call("GET", "/queue") if x["case_id"] == case_id and x["event"] == "deadline"][0]
+    return datetime.fromisoformat(r["locked_at"]), datetime.fromisoformat(r["done_at"])
+
+
+(a0, a1), (b0, b1) = span(ca), span(cb)
+overlap = (min(a1, b1) - max(a0, b0)).total_seconds()
+print(f"      案件A: {a0:%H:%M:%S.%f}～{a1:%H:%M:%S.%f}  /  案件B: {b0:%H:%M:%S.%f}～{b1:%H:%M:%S.%f}  → 重なり {overlap:.1f}秒")
+check("案件Aと案件Bの処理時間が重なった（=別々のワーカーが同時に処理した）", overlap > 0)

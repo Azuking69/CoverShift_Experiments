@@ -10,7 +10,7 @@
 """
 import os
 import time
-from common import connect, log
+from common import connect, log, ensure_schema
 
 POLL_SECONDS = 1
 WORK_SECONDS = float(os.getenv("WORK_SECONDS", "2"))   # 重い処理のまね（CP-SAT や LLM の待ち時間）
@@ -57,10 +57,11 @@ def finish(conn, job_id, case_id, event):
         else:
             conn.execute("UPDATE cases SET state = %s, updated_at = now() WHERE id = %s", (new, case_id))
             log(WORKER_NAME, f"案件{case_id}: '{current}' → '{new}'  (合図 '{event}')")
-        conn.execute("UPDATE queue SET status = 'done' WHERE id = %s", (job_id,))
+        conn.execute("UPDATE queue SET status = 'done', done_at = now() WHERE id = %s", (job_id,))
 
 
 def main():
+    ensure_schema()
     log(WORKER_NAME, f"起動。1件の処理に約{WORK_SECONDS}秒かかる設定")
     with connect() as conn:
         while True:
