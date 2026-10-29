@@ -276,13 +276,16 @@ builder.add_edge("send_final_shift", END)
 
 
 # 5) グラフ実行
-with PostgresSaver.from_conn_string(DB_URL) as saver:
-    saver.setup()
-    graph = builder.compile(checkpointer=saver)
+if __name__ == "__main__":
+    with PostgresSaver.from_conn_string(DB_URL) as saver:
+        saver.setup()
+        graph = builder.compile(checkpointer=saver)
 
-    config = {"configurable": {"thread_id": "test_12"}}
-    start = time.time()   
-    result = graph.invoke({"store_id": 101}, config)
-    print(f"かかった時間: {time.time() - start:.1f}秒")
+        config = {"configurable": {"thread_id": "test_13"}}
+        start = time.time()
 
-    print(len(result["draft_store_shift"]))
+        for chunk in graph.stream({"store_id": 101}, config, stream_mode="updates"):
+            for node_name, update in chunk.items():
+                print(f"--- {node_name} が終わりました（{time.time() - start:.1f}秒）")
+
+        print("ストリーム終了")
