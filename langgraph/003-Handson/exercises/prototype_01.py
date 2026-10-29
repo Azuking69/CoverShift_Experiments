@@ -1,19 +1,12 @@
 import os
+import json
 import time
 from typing import TypedDict, Literal
 from langchain_anthropic import ChatAnthropic
-from langchain_core.tools import tool
-from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.outputs import ChatGeneration, ChatResult
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import StateGraph, START, END, MessagesState
+from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.types import Command, interrupt
-from langgraph.prebuilt import ToolNode, tools_condition
-
 from dotenv import load_dotenv
-import json
 
 
 # 0) 初期設定
@@ -80,33 +73,6 @@ def skill_check(state):
 
 
 # 【LLM】AIが編成案を作る
-@tool
-def llm_tool(draft_store_shift: list, all_staff: list) -> str:
-    """店舗の月間シフト案を作成するために、店舗のスタッフ数を返す"""
-    # ここで実際のLLMを呼び出すことができます。今回はダミーとして、単純にリストを返します。
-    return f"店舗のスタッフ数: {len(all_staff)}"
-
-class FakeLLM(BaseChatModel):
-    """実験用のLLM。実際には、OpenAIやAnthropicなどのLLMを使うことができます。"""
-
-    @property
-    def _llm_type(self) -> str:
-        return "fake"
-
-    def bind_tools(self, tools, **kwargs):
-        return self
-
-    def _generate(self, messages, stop=None, run_maneger=None, **kwargs):
-        if any(isinstance(msg, ToolMessage) for msg in messages):
-            msg = AIMessage("店舗の月間シフト案を作成しました: " + messages[-1].content)
-        else:
-            msg = AIMessage("", tool_calls=[{
-                "name": "llm_tool",
-                "args": {"store_id": "101", "all_staff": []},
-                "id": "tool_call_1"
-            }])
-        return ChatResult(generations=[ChatGeneration(message=msg)])
-
 llm = ChatAnthropic(model="claude-sonnet-5-5", api_key=os.environ["ANTHROPIC_API_KEY"])
 # llm = FakeLLM()  # 実験用のLLMを使用する場合は、こちらを有効にしてください。
 
@@ -146,7 +112,39 @@ def auto_draft(state: State):
     print("自動編成中...")
     state["return_count"] += 1
     prompt = rules + json.dumps(state["llm_all_staff"], ensure_ascii=False)
-    return {"draft_store_shift": [llm.invoke(prompt)], "return_count": state["return_count"]}
+    
+    res = llm.invoke(prompt)
+    text = ""
+    for block in res.content:
+        if block["type"] == "text":
+            text = block["text"]
+    data = json.loads(text)
+
+    return {"draft_store_shift": data["assignments"], "return_count": state["return_count"]}
+
+
+#  【コード】編成案をチェックする
+def check_coverage(assignments, all_staff):
+    id_to_emp = {}
+    for s in all_staff:
+        id_to_emp[s["staff_id"]] = s["employment"]
+
+    def to_min(t):
+        h, m = t.split(":")
+        return int(h) * 60 + int(m)
+
+    problems = []
+    for day in range(1, 8):
+        date = f"2026-11-{day:02d}"
+        for t in range(8 * 60, 22 * 60 + 30, 30):
+            count = 0
+            for a in assignments:
+                if a["date"] == date and id_to_emp[a["staff_id"]] == "社員" and to_min(a["start"]) <= t < to_min(a["end"]):
+                    count += 1
+            if count == 0:
+                problems.append(f"{date} {t // 60:02d}:{t % 60:02d} 社員がいません")
+    return problems
+
 
 # 【コード】ルールを守っているか検査する
 def validate(state: State):
@@ -161,14 +159,14 @@ def validate(state: State):
 
     else:
         # 検査ロジック実装
-        if state["deficiency"] in state["draft_store_shift"]:
-            state["result"] = "no_staff"
-        elif state["draft_store_shift"] == []:
+        problems = check_coverage(state["draft_store_shift"], state["llm_all_staff"])
+        if state["draft_store_shift"] == []:
             state["result"] = "problem_O"
-        elif state["draft_store_shift"] != []:
-            state["result"] = "valid"
+        elif problems:
+            print(problems)
+            state["result"] = "problem_O"
         else:
-            state["result"] = "error_shift"
+            state["result"] = "valid"
 
         # 【分岐】検査結果
         if state["result"] == "valid":
@@ -282,33 +280,9 @@ with PostgresSaver.from_conn_string(DB_URL) as saver:
     saver.setup()
     graph = builder.compile(checkpointer=saver)
 
-    # config = {"configurable": {"thread_id": "test_2"}}
-    # result = graph.invoke({"store_id": 101}, config)
-    # print(result)
-
-    # manager_comment = graph.invoke(Command(resume=True), config)
-    # print(manager_comment)
-
-    # config = {"configurable": {"thread_id": "test_4"}}
-
-    config = {"configurable": {"thread_id": "test_10"}}
+    config = {"configurable": {"thread_id": "test_12"}}
     start = time.time()   
     result = graph.invoke({"store_id": 101}, config)
-
     print(f"かかった時間: {time.time() - start:.1f}秒")
-    print(result["draft_store_shift"][0].content)
 
-
-    # print(result)
-    # r2 = graph.invoke(Command(resume=False), config)
-    # r3 = graph.invoke(Command(resume=False), config)
-    # r4 = graph.invoke(Command(resume=False), config)
-
-    msg = result["draft_store_shift"][0]
-    text = ""
-    for block in msg.content:
-        if block["type"] == "text":
-            text = block["text"]
-    data = json.loads(text)
-    print(len(data["assignments"]))
-    print(msg.usage_metadata)
+    print(len(result["draft_store_shift"]))
