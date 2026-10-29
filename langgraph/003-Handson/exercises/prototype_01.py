@@ -1,4 +1,5 @@
 import os
+import time
 from typing import TypedDict, Literal
 from langchain_anthropic import ChatAnthropic
 from langchain_core.tools import tool
@@ -12,29 +13,45 @@ from langgraph.types import Command, interrupt
 from langgraph.prebuilt import ToolNode, tools_condition
 
 from dotenv import load_dotenv
-from staff_data import STAFF, ALL_STAFF, STAFF_INFO
+import json
 
 
 # 0) 初期設定
-load_dotenv()                 # 環境変数をロードする
-DB_URL = os.environ["DB_URL"] # DBの接続URL
+# jsonファイルからスタッフデータを読み込む
+with open("staff_data.json", encoding="utf-8") as f:
+    STAFF = json.load(f)
+
+# 環境変数をロードする
+load_dotenv()     
+
+# DBの接続URL                        
+DB_URL = os.environ["DB_URL"]
+
+# 名前とIDの対応表を作成する                    
+id_to_name = {}                                  
+for s in STAFF:
+    id_to_name[s["staff_id"]] = s["staff_name"]  # IDから名前を取得する
+
+# 名前からIDを削除する関数
+llm_all_staff = []                                     
+for s in STAFF:                                  
+    item = {}                                    # 名前を削除したデータを作成する
+    for key, value in s.items():
+        if key != "staff_name":                  # 名前がある場合
+            item[key] = value                    # 名前を削除して、IDだけを残す
+    llm_all_staff.append(item)                   # 名前を削除したデータをリストに追加する
 
 
 # 1) 箱作成
 class State(TypedDict):
     store_id: int              # 店舗ID
-    all_staff: list            # 全社員のリスト
-    staff_id: int              # 社員ID
-    staff_name: str            # 社員名
-    preferred_shift: list      # 希望シフト
-    staff_skill: int           # スキルレベル
-    admin_rate: int            # 管理者評価
-    draft_month_shift: list    # 各社員の月間シフト案
+    llm_all_staff: list        # 全員のLLMに渡すデータ
     draft_store_shift: list    # 店全体の月間シフト案
     result: str                # 検査の結果
     deficiency: str            # 不足の有無
     return_count: int          # 戻り値の数
     upper_limit: int           # 上限値
+    decision: bool             # 店長の承認(True)・却下(False)
 
 
 # 2) グラフ作成
@@ -42,23 +59,24 @@ class State(TypedDict):
 def collect(state):
     print("希望シフトを収集中...")
     print("スキルを評価中...")
-    return {"draft_month_shift": state['preferred_shift']}
+    return {"llm_all_staff": llm_all_staff, "draft_store_shift": [], "result": "", "deficiency": "", "return_count": 0, "upper_limit": 3}
 
 
 # 【分岐】スキルチェックが必要かどうかを判断する
 def route_1(state) -> Literal["skill_check", "auto_draft"]:
-    return "skill_check" if state["staff_skill"] != state["admin_rate"] else "auto_draft"
+    for s in state["llm_all_staff"]:                # 全員のデータを一人ずつ確認する
+        if s["staff_skill"] != s["admin_rate"]:     # スキルと管理者評価が一致しない場合は、スキルチェックが必要
+            return "skill_check"
+    return "auto_draft"                             # スキルと管理者評価が一致する場合は、自動編成に進む
 
 
 # 【コード】未確認を「要指導」とみなして、店長に知らせる(止まらない)
 def skill_check(state):
     print("スキルチェック中...")
-    if state["staff_skill"] == state["admin_rate"]:
-        print(f"{state['staff_name']}のスキルが正しいです。")
-        return {"draft": f"{state['staff_name']}のスキルが正しいです。"}
-    else:
-        print(f"{state['staff_name']}のスキルが不正です。店長に知らせます。")
-        return {"draft": f"{state['staff_name']}のスキルが不正です。店長に知らせます。"}
+    for s in state["llm_all_staff"]:                 
+        if s["staff_skill"] != s["admin_rate"]:  
+            print(f"{id_to_name[s['staff_id']]}のスキルが違います。店長に知らせます。") 
+    return {}
 
 
 # 【LLM】AIが編成案を作る
@@ -90,20 +108,45 @@ class FakeLLM(BaseChatModel):
         return ChatResult(generations=[ChatGeneration(message=msg)])
 
 llm = ChatAnthropic(model="claude-sonnet-5-5", api_key=os.environ["ANTHROPIC_API_KEY"])
+# llm = FakeLLM()  # 実験用のLLMを使用する場合は、こちらを有効にしてください。
+
+# rules: LLMが編成案を作る際のルール
+rules = """あなたは日本のシフト形式を熟知したシフト編成の補助です。
+提案だけを行い、最終確定は人(店長)が行います。
+
+【対象期間】2026-11-01 から 2026-11-07 までの1週間だけ。
+
+【必ず守るルール】
+1. 営業準備と閉店作業を含め、毎日 08:00〜22:30 の間、どの30分の区切りにも社員が1人以上いること。
+2. 開店作業(08:00)と閉店作業(22:00〜22:30)を担当する人が、毎日いること。
+3. パート・バイトは、requests に書かれていない日には入れないこと。22:00 までが基本。closing_ok が true の人だけ 22:30 まで可。
+4. 時間は30分単位(例: 08:00, 13:30)で書くこと。
+
+【できるだけ守る目標】
+5. 社員の希望休(off)は、できるだけ通す。ただし、ルール1を守れないときは、希望休を通さなくてよい。通さなかった場合は notes に理由を書くこと。
+6. 社員で requests に時間のない日は、あなたが決めてよい。
+7. パート・バイトの出勤回数は、人のあいだでほぼ同じになるようにする。
+
+【出力形式】
+次のJSONだけを出力すること。説明文は書かない。
+{"assignments": [{"staff_id": 1, "date": "2026-11-02", "start": "08:00", "end": "17:00"}], "notes": ["..."]}
+
+【スタッフのデータ(JSON)】
+"""
 
 def auto_draft(state: State):
     """
     希望のシフト・スキル・管理者評価をもとに、LLMが自動で編成案を作る。
-    1) アルバイト・パートの希望シフト(preferred_shift: list)を確認する
-    2) 社員の希望休暇(preferred_shift: list)を確認する
+    1) アルバイト・パートの希望シフト(llm_all_staff: list)を確認する
+    2) 社員の希望休暇(llm_all_staff: list)を確認する
     3) スキル・管理者評価をもとに、シフトの組み合わせを考える
     4) 可能な限り希望シフトを尊重しつつ、必要なスキルを確保する
     5) 編成案(draft_store_shift: list)を作成する
     """
     print("自動編成中...")
     state["return_count"] += 1
-    return {"draft_store_shift": [llm.invoke(state["draft_store_shift"])], "return_count": state["return_count"]}
-
+    prompt = rules + json.dumps(state["llm_all_staff"], ensure_ascii=False)
+    return {"draft_store_shift": [llm.invoke(prompt)], "return_count": state["return_count"]}
 
 # 【コード】ルールを守っているか検査する
 def validate(state: State):
@@ -185,12 +228,16 @@ def contact(state):
 # 【待機】店長の承認を待つ
 def approve(state):
     print("店長の承認を待っています...")
-    decision = interrupt({"draft_store_shift": state["draft_store_shift"], "ask": "承認(True)|却下(False)"})
+    decision = interrupt({"draft_store_shift": state["draft_store_shift"], "ask": "承認 | 却下"})
+    return {"decision": decision}
 
 # 【返信】店長の選択
 def route_3(state) -> Command[Literal["finalize", "auto_draft"]]:
-    next_node = "finalize" if state["decision"] == True else "auto_draft"
-    return Command(goto=next_node, update={"draft_store_shift": state["draft_store_shift"] + ["承認済み"]})
+    if state["decision"] == True:
+        return Command(goto="finalize", update={
+            "draft_store_shift": state["draft_store_shift"] + ["承認済み"]})   # 承認のときだけ「承認済み」を足す
+    else:
+        return Command(goto="auto_draft")                                     
 
 
 # 【コード】最新データで再チェックして、確定を保存
@@ -214,6 +261,7 @@ builder.add_node("validate", validate)
 builder.add_node("manual_draft", manual_draft)
 builder.add_node("contact", contact)
 builder.add_node("approve", approve)
+builder.add_node("route_3", route_3)
 builder.add_node("finalize", finalize)
 builder.add_node("send_final_shift", send_final_shift)
 
@@ -224,7 +272,7 @@ builder.add_conditional_edges("collect", route_1, {"skill_check": "skill_check",
 builder.add_edge("skill_check", "auto_draft")
 builder.add_edge("auto_draft", "validate")
 builder.add_conditional_edges("validate", route_2, {"approve": "approve", "contact": "contact", "auto_draft": "auto_draft", "manual_draft": "manual_draft"})
-builder.add_edge("approve", "finalize")
+builder.add_edge("approve", "route_3")
 builder.add_edge("finalize", "send_final_shift")
 builder.add_edge("send_final_shift", END)
 
@@ -234,16 +282,33 @@ with PostgresSaver.from_conn_string(DB_URL) as saver:
     saver.setup()
     graph = builder.compile(checkpointer=saver)
 
-    staff_badges = []   # 従業員の情報を入力する箱
+    # config = {"configurable": {"thread_id": "test_2"}}
+    # result = graph.invoke({"store_id": 101}, config)
+    # print(result)
 
-    for num in range(1, 6):
-        staff_badges.append({"configurable": {
-        "thread_id": f"thread_{num}"
-    }})
+    # manager_comment = graph.invoke(Command(resume=True), config)
+    # print(manager_comment)
+
+    # config = {"configurable": {"thread_id": "test_4"}}
+
+    config = {"configurable": {"thread_id": "test_10"}}
+    start = time.time()   
+    result = graph.invoke({"store_id": 101}, config)
+
+    print(f"かかった時間: {time.time() - start:.1f}秒")
+    print(result["draft_store_shift"][0].content)
 
 
+    # print(result)
+    # r2 = graph.invoke(Command(resume=False), config)
+    # r3 = graph.invoke(Command(resume=False), config)
+    # r4 = graph.invoke(Command(resume=False), config)
 
-
-
-    print(len(list(graph.get_state_history(staff_badges[0]))), "の履歴が保存されました。")
-    print("〇月のシフト:" + "draft_store_shift")
+    msg = result["draft_store_shift"][0]
+    text = ""
+    for block in msg.content:
+        if block["type"] == "text":
+            text = block["text"]
+    data = json.loads(text)
+    print(len(data["assignments"]))
+    print(msg.usage_metadata)
