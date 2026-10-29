@@ -1,5 +1,6 @@
 import os
 from typing import TypedDict, Literal
+from langchain_anthropic import ChatAnthropic
 from langchain_core.tools import tool
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.outputs import ChatGeneration, ChatResult
@@ -9,7 +10,9 @@ from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.types import Command, interrupt
 from langgraph.prebuilt import ToolNode, tools_condition
+
 from dotenv import load_dotenv
+from staff_data import STAFF, ALL_STAFF, STAFF_INFO
 
 
 # 0) 初期設定
@@ -86,7 +89,7 @@ class FakeLLM(BaseChatModel):
             }])
         return ChatResult(generations=[ChatGeneration(message=msg)])
 
-llm = FakeLLM().bind_tools([llm_tool])
+llm = ChatAnthropic(model="claude-sonnet-5-5", api_key=os.environ["ANTHROPIC_API_KEY"])
 
 def auto_draft(state: State):
     """
@@ -240,11 +243,6 @@ with PostgresSaver.from_conn_string(DB_URL) as saver:
 
 
 
-    print(graph.invoke({"staff_id": 1, "staff_name": "Alice",   "preferred_shift": ["Mon", "Tue"], "staff_skill": 3, "admin_rate": 3, "draft_month_shift": [], "draft_store_shift": [], "result": "", "deficiency": "", "return_count": 0, "upper_limit": 2}, staff_badges[0]))
-    print(graph.invoke({"staff_id": 2, "staff_name": "Bob",     "preferred_shift": ["Wed", "Thu"], "staff_skill": 2, "admin_rate": 3, "draft_month_shift": [], "draft_store_shift": [], "result": "", "deficiency": "", "return_count": 0, "upper_limit": 2}, staff_badges[1]))
-    print(graph.invoke({"staff_id": 3, "staff_name": "Charlie", "preferred_shift": ["Fri", "Sat"], "staff_skill": 2, "admin_rate": 1, "draft_month_shift": [], "draft_store_shift": [], "result": "", "deficiency": "", "return_count": 0, "upper_limit": 2}, staff_badges[2]))
-    print(graph.invoke({"staff_id": 4, "staff_name": "David",   "preferred_shift": ["Sun", "Mon"], "staff_skill": 3, "admin_rate": 3, "draft_month_shift": [], "draft_store_shift": [], "result": "", "deficiency": "", "return_count": 0, "upper_limit": 2}, staff_badges[3]))
-    print(graph.invoke({"staff_id": 5, "staff_name": "Eve",     "preferred_shift": ["Tue", "Wed"], "staff_skill": 2, "admin_rate": 3, "draft_month_shift": [], "draft_store_shift": [], "result": "", "deficiency": "", "return_count": 0, "upper_limit": 2}, staff_badges[4]))
 
 
     print(len(list(graph.get_state_history(staff_badges[0]))), "の履歴が保存されました。")
