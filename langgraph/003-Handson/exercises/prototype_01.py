@@ -45,6 +45,7 @@ class State(TypedDict):
     return_count: int          # 戻り値の数
     upper_limit: int           # 上限値
     decision: bool             # 店長の承認(True)・却下(False)
+    problems: list             # 検査で見つかった問題の一覧(作り直しのとき LLM に返す)    
 
 
 # 2) グラフ作成
@@ -52,7 +53,7 @@ class State(TypedDict):
 def collect(state):
     print("希望シフトを収集中...")
     print("スキルを評価中...")
-    return {"llm_all_staff": llm_all_staff, "draft_store_shift": [], "result": "", "deficiency": "", "return_count": 0, "upper_limit": 3}
+    return {"llm_all_staff": llm_all_staff, "draft_store_shift": [], "result": "", "deficiency": "", "return_count": 0, "upper_limit": 3, "problems": []}
 
 
 # 【分岐】スキルチェックが必要かどうかを判断する
@@ -109,9 +110,8 @@ def auto_draft(state: State):
     """
     print("自動編成中...")
     state["return_count"] += 1
-    prompt = rules + make_qualification_text(QUALIFICATION_RULES) + "\n【スタッフのデータ(JSON)】\n" + json.dumps(state["llm_all_staff"], ensure_ascii=False)
-    
-    res = llm.invoke(prompt)
+    prompt = rules + make_qualification_text(QUALIFICATION_RULES) + make_days_text(SHAIN_OFF_DAYS) + make_headcount_text(MIN_HEADCOUNT) + make_problem_text(state.get("problems", [])) + "\n【スタッフのデータ(JSON)】\n" + json.dumps(state["llm_all_staff"], ensure_ascii=False)
+    res = llm.invoke(prompt)    
     print(res.usage_metadata)
     print(res.response_metadata.get("stop_reason"))
     text = ""
@@ -129,8 +129,14 @@ def auto_draft(state: State):
 QUALIFICATION_RULES = [
     {"qualification": ["登録販売者(管理者)", "薬剤師"], "start": "08:00", "end": "22:30", "min": 1},
 ]
+SHAIN_OFF_DAYS = 9
+MIN_HEADCOUNT = [
+    {"start": "08:00", "end": "09:00", "min": 3, "exclude": ["薬剤師"]},
+    {"start": "09:00", "end": "13:00", "min": 4, "want": 5, "exclude": []},
+]
 
 
+# 【コード】資格ルールの文章を作る
 def make_qualification_text(qual_rules):
     if not qual_rules:                       # [] のときは、文を作らない(スイッチOFF)
         return ""
@@ -138,6 +144,47 @@ def make_qualification_text(qual_rules):
     for r in qual_rules:
         names = "、".join(r["qualification"])
         text += f"- {r['start']}〜{r['end']}は、qualification が「{names}」のどれかの人が、どの30分の区切りにも{r['min']}人以上いること。\n"
+    return text
+
+
+# 【コード】社員の出勤日数の文章を作る
+def make_days_text(off_days):
+    if off_days is None:                     # None のときは、文を作らない(スイッチOFF)
+        return ""
+    work_days = 30 - off_days
+    return (f"\n【社員の出勤日数(必ず守る)】\n"
+            f"- 社員(employment が 社員 の人)は、1か月の公休(休み)が{off_days}日です。出勤は、ちょうど{work_days}日にすること。\n"
+            f"- requests に off と書かれた日は、公休にあててよい。\n"
+            f"- requests に paid_leave: true と書かれた日は、1日まるごと有給で、その日は店に出ない。ただし、出勤日数には1日として数える(例: 有給が2日なら、実際に出る日は{work_days - 2}日)。\n"
+            f"- requests に paid_leave: half と書かれた日は、半休。start と end の時間どおりに入れる。この日も、出勤日数に1日として数える。\n"
+            f"- 有給と半休の日は、できるだけ守る。守れなかったときは、notes に理由を書くこと。\n"
+            f"- 出力する前に、社員1人ずつ、出勤した日と有給の日を合わせて数えて、{work_days}日であることを確かめること。\n")
+
+
+# 【コード】問題の一覧を、LLM に渡す文にする関数
+def make_problem_text(problems):
+    if not problems:                          # 問題がないとき(1回目)は、文を作らない
+        return ""
+    text = "\n【前回の案の問題(今回は必ず直すこと)】\n"
+    for p in problems[:20]:                   # 長くなりすぎないよう、20件まで
+        text += f"- {p}\n"
+    if len(problems) > 20:
+        text += f"- (ほか{len(problems) - 20}件)\n"
+    return text
+
+
+# 【コード】最低人数の文章を作る
+def make_headcount_text(rules):
+    if not rules:                            # [] のときは、文を作らない(スイッチOFF)
+        return ""
+    text = "\n【時間帯ごとの最低人数(必ず守る)】\n"
+    for r in rules:
+        text += f"- {r['start']}〜{r['end']}は、同時にいる人数を{r['min']}人以上にすること。\n"
+        if r.get("exclude"):
+            text += f"  (qualification が{'・'.join(r['exclude'])}の人は、この時間帯の人数に数えない)\n"
+        if r.get("want"):
+            text += f"  できれば{r['want']}人にする。\n"
+    text += "- 出られる人が足りなくて、どうしても守れない日は、守れなくてよい。その日は notes に書くこと。\n"
     return text
 
 
@@ -219,8 +266,111 @@ def check_closing(assignments, all_staff):
         s = id_to_staff[a["staff_id"]]
         if s["employment"] not in ("パート", "バイト"):
             continue
-        if a["end"] > "22:00" and not s.get("closing_ok"):    # "22:30" > "22:00" は文字の順で正しく比べられる
+        if a["end"] > "22:00" and not s.get("closing_ok"):
             problems.append(f"{a['date']} ID{a['staff_id']}は22:30まで残れません")
+    return problems
+
+
+#  【コード】編成案をチェックする(社員の出勤日数が、決まりどおりか)
+def check_shain_days(assignments, all_staff, off_days):
+    if off_days is None:                                     # None のときは何も見ない(スイッチOFF)
+        return []
+    work_days = 30 - off_days                                # 出勤日数 = 月の日数 - 公休日数
+    problems = []
+    for s in all_staff:
+        if s["employment"] != "社員":
+            continue
+        dates = []
+        for a in assignments:
+            if a["staff_id"] == s["staff_id"] and a["date"] not in dates:
+                dates.append(a["date"])                      # 同じ日は1回だけ数える
+        for r in s["requests"]:
+            if r.get("paid_leave") is True and r["date"] not in dates:   # 1日まるごと有給の日も、出勤日数に数える
+                dates.append(r["date"])
+        if len(dates) != work_days:
+            problems.append(f"ID{s['staff_id']}の出勤日数が{len(dates)}日です(決まりは{work_days}日)")
+    return problems
+
+
+def to_min(t):
+    h, m = t.split(":")
+    return int(h) * 60 + int(m)
+
+def _req(staff, date):
+    for r in staff.get("requests", []):
+        if r["date"] == date:
+            return r
+    return None
+
+def max_headcount(date, t, all_staff, exclude):
+    """その日その時刻に、理論上いちばん多く何人出られるか"""
+    n = 0
+    for s in all_staff:
+        if s.get("qualification") in exclude:
+            continue
+        req = _req(s, date)
+        if s["employment"] == "社員":
+            if req and (req.get("off") or req.get("paid_leave") is True):
+                continue
+            if req and "start" in req and not (to_min(req["start"]) <= t < to_min(req["end"])):
+                continue
+            n += 1
+        else:  # パート・バイトは、申請した時間だけ
+            if req and "start" in req and to_min(req["start"]) <= t < to_min(req["end"]):
+                n += 1
+    return n
+
+def impossible_cases(rules, all_staff):
+    """理論上、最低人数に届かない (日付, ルール, 最大人数) の一覧"""
+    out = []
+    for day in range(1, 31):
+        date = f"2026-11-{day:02d}"
+        for r in rules:
+            slots = range(to_min(r["start"]), to_min(r["end"]), 30)
+            best = min(max_headcount(date, t, all_staff, r.get("exclude", [])) for t in slots)
+            if best < r["min"]:
+                out.append((date, r, best))
+    return out
+
+def make_shortage_report(rules, all_staff):
+    """管理者に見せる『人が足りない日』と、相談の候補"""
+    lines = []
+    for date, r, best in impossible_cases(rules, all_staff):
+        lines.append(f"{date} {r['start']}〜{r['end']}：最大でも{best}人(最低{r['min']}人)")
+        part, shain = [], []
+        for s in all_staff:
+            if s.get("qualification") in r.get("exclude", []):
+                continue
+            req = _req(s, date)
+            if s["employment"] == "社員":
+                if req and req.get("off"):
+                    shain.append(str(s["staff_id"]))
+            elif not req:   # 申請も休みの連絡もない人
+                part.append(str(s["staff_id"]))
+        if part:
+            lines.append(f"  → パート・バイトに出られるか聞く候補(ID): {', '.join(part)}")
+        if shain:
+            lines.append(f"  → 希望休を変えられるか相談する社員(ID): {', '.join(shain)}")
+    return lines
+
+def check_headcount(assignments, all_staff, rules):
+    skip = {(d, r["start"]) for d, r, _ in impossible_cases(rules, all_staff)}
+    qual = {s["staff_id"]: s.get("qualification") for s in all_staff}
+    problems = []
+    for day in range(1, 31):
+        date = f"2026-11-{day:02d}"
+        for r in rules:
+            if (date, r["start"]) in skip:
+                continue
+            low = None
+            for t in range(to_min(r["start"]), to_min(r["end"]), 30):
+                n = sum(1 for a in assignments
+                        if a["date"] == date
+                        and qual.get(a["staff_id"]) not in r.get("exclude", [])
+                        and to_min(a["start"]) <= t < to_min(a["end"]))
+                low = n if low is None else min(low, n)
+            if low is not None and low < r["min"]:
+                problems.append(f"{date} {r['start']}〜{r['end']}の人数が{low}人です。{r['min']}人以上にしてください")
     return problems
 
 
@@ -238,19 +388,29 @@ def validate(state: State):
     else:
         # 検査ロジック実装
         problems = check_coverage(state["draft_store_shift"], state["llm_all_staff"])
-        problems = problems + check_qualification(state["draft_store_shift"], state["llm_all_staff"], QUALIFICATION_RULES)        
+        problems = problems + check_qualification(state["draft_store_shift"], state["llm_all_staff"], QUALIFICATION_RULES)   
+        problems = problems + check_requests(state["draft_store_shift"], state["llm_all_staff"])
+        problems = problems + check_closing(state["draft_store_shift"], state["llm_all_staff"])
+        problems = problems + check_shain_days(state["draft_store_shift"], state["llm_all_staff"], SHAIN_OFF_DAYS)
+        problems += check_headcount(state["draft_store_shift"], state["llm_all_staff"], MIN_HEADCOUNT)
+
         if state["draft_store_shift"] == []:
             state["result"] = "problem_O"
         elif problems:
             print(problems)
             state["result"] = "problem_O"
+            return {"result": state['result'], "problems": problems}
         else:
             state["result"] = "valid"
 
         # 【分岐】検査結果
         if state["result"] == "valid":
             print("編成案は有効です。")
-            return {"result": state['result']}
+            shortage = make_shortage_report(MIN_HEADCOUNT, state["llm_all_staff"])
+            if shortage:
+                print("【人が足りない日(管理者に相談してください)】")
+                print("\n".join(shortage))
+            return {"result": state['result'], "problems": []}
         elif state["result"] == "no_staff":
             print("編成案に必要なスタッフが不足しています。再度編成を行います。")
             return {"result": state['result']}
@@ -359,7 +519,7 @@ if __name__ == "__main__":
         saver.setup()
         graph = builder.compile(checkpointer=saver)
 
-        config = {"configurable": {"thread_id": "test_qual_1"}}
+        config = {"configurable": {"thread_id": "test_qual_4"}}        
         start = time.time()
 
         for chunk in graph.stream({"store_id": 101}, config, stream_mode="updates"):
