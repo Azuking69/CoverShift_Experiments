@@ -3,6 +3,7 @@
     "staff_id": 1,
     "staff_name": "Aさん",
     "employment": "社員",
+    "qualification": "登録販売者(管理者)",
     "staff_skill": 3,
     "admin_rate": 3,
     "requests": [
@@ -86,6 +87,7 @@
     "staff_id": 2,
     "staff_name": "Bさん",
     "employment": "社員",
+    "qualification": "登録販売者(管理者)",
     "staff_skill": 3,
     "admin_rate": 3,
     "requests": [
@@ -168,6 +170,7 @@
     "staff_id": 3,
     "staff_name": "Cさん",
     "employment": "社員",
+    "qualification": "登録販売者(管理者)",
     "staff_skill": 3,
     "admin_rate": 3,
     "requests": [
@@ -255,6 +258,7 @@
     "staff_id": 4,
     "staff_name": "Dさん",
     "employment": "社員",
+    "qualification": "登録販売者(研修中)",
     "staff_skill": 3,
     "admin_rate": 2,
     "requests": [
@@ -290,9 +294,93 @@
     ]
   },
   {
+    "staff_id": 16,
+    "staff_name": "Pさん",
+    "employment": "社員",
+    "qualification": "薬剤師",
+    "staff_skill": 3,
+    "admin_rate": 3,
+    "requests": [
+      {
+        "date": "2026-11-02",
+        "start": "08:00",
+        "end": "17:00"
+      },
+      {
+        "date": "2026-11-03",
+        "start": "08:00",
+        "end": "17:00"
+      },
+      {
+        "date": "2026-11-04",
+        "start": "13:30",
+        "end": "22:30"
+      },
+      {
+        "date": "2026-11-06",
+        "off": true
+      },
+      {
+        "date": "2026-11-07",
+        "off": true
+      },
+      {
+        "date": "2026-11-08",
+        "start": "09:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-10",
+        "start": "08:00",
+        "end": "17:00"
+      },
+      {
+        "date": "2026-11-13",
+        "start": "09:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-16",
+        "start": "13:30",
+        "end": "22:30"
+      },
+      {
+        "date": "2026-11-17",
+        "start": "09:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-21",
+        "start": "13:30",
+        "end": "22:30"
+      },
+      {
+        "date": "2026-11-23",
+        "start": "08:00",
+        "end": "17:00"
+      },
+      {
+        "date": "2026-11-24",
+        "start": "08:00",
+        "end": "17:00"
+      },
+      {
+        "date": "2026-11-25",
+        "start": "08:00",
+        "end": "17:00"
+      },
+      {
+        "date": "2026-11-29",
+        "start": "09:00",
+        "end": "22:00"
+      }
+    ]
+  },
+  {
     "staff_id": 5,
     "staff_name": "Eさん",
     "employment": "パート",
+    "qualification": "登録販売者(管理者)",
     "staff_skill": 3,
     "admin_rate": 3,
     "requests": [
@@ -914,6 +1002,99 @@
       }
     ],
     "closing_ok": true
+  },
+  {
+    "staff_id": 17,
+    "staff_name": "Qさん",
+    "employment": "パート",
+    "qualification": "薬剤師",
+    "staff_skill": 3,
+    "admin_rate": 3,
+    "requests": [
+      {
+        "date": "2026-11-01",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-04",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-06",
+        "off": true
+      },
+      {
+        "date": "2026-11-07",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-09",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-11",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-12",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-13",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-14",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-15",
+        "off": true
+      },
+      {
+        "date": "2026-11-16",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-18",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-21",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-22",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-23",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-29",
+        "start": "13:00",
+        "end": "22:00"
+      },
+      {
+        "date": "2026-11-30",
+        "start": "13:00",
+        "end": "22:00"
+      }
+    ]
   },
   {
     "staff_id": 11,

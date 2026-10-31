@@ -80,7 +80,7 @@ llm = ChatAnthropic(model="claude-sonnet-5-5", api_key=os.environ["ANTHROPIC_API
 rules = """あなたは日本のシフト形式を熟知したシフト編成の補助です。
 提案だけを行い、最終確定は人(店長)が行います。
 
-【対象期間】2026-11-01 から 2026-11-07 までの1週間だけ。
+【対象期間】2026-11-01 から 一か月分。
 
 【必ず守るルール】
 1. 営業準備と閉店作業を含め、毎日 08:00〜22:30 の間、どの30分の区切りにも社員が1人以上いること。
@@ -96,8 +96,6 @@ rules = """あなたは日本のシフト形式を熟知したシフト編成の
 【出力形式】
 次のJSONだけを出力すること。説明文は書かない。
 {"assignments": [{"staff_id": 1, "date": "2026-11-02", "start": "08:00", "end": "17:00"}], "notes": ["..."]}
-
-【スタッフのデータ(JSON)】
 """
 
 def auto_draft(state: State):
@@ -111,19 +109,39 @@ def auto_draft(state: State):
     """
     print("自動編成中...")
     state["return_count"] += 1
-    prompt = rules + json.dumps(state["llm_all_staff"], ensure_ascii=False)
+    prompt = rules + make_qualification_text(QUALIFICATION_RULES) + "\n【スタッフのデータ(JSON)】\n" + json.dumps(state["llm_all_staff"], ensure_ascii=False)
     
     res = llm.invoke(prompt)
+    print(res.usage_metadata)
+    print(res.response_metadata.get("stop_reason"))
     text = ""
     for block in res.content:
         if block["type"] == "text":
             text = block["text"]
     data = json.loads(text)
+    print(f"編成の件数: {len(data['assignments'])}")
+    with open("month_draft.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
 
     return {"draft_store_shift": data["assignments"], "return_count": state["return_count"]}
 
+# 店ごとの設定(管理者が決める)。資格が要らない業種は [] にする
+QUALIFICATION_RULES = [
+    {"qualification": ["登録販売者(管理者)", "薬剤師"], "start": "08:00", "end": "22:30", "min": 1},
+]
 
-#  【コード】編成案をチェックする
+
+def make_qualification_text(qual_rules):
+    if not qual_rules:                       # [] のときは、文を作らない(スイッチOFF)
+        return ""
+    text = "\n【資格のルール(必ず守る)】\n"
+    for r in qual_rules:
+        names = "、".join(r["qualification"])
+        text += f"- {r['start']}〜{r['end']}は、qualification が「{names}」のどれかの人が、どの30分の区切りにも{r['min']}人以上いること。\n"
+    return text
+
+
+#  【コード】編成案をチェックする(社員が毎回1人以上いるか)
 def check_coverage(assignments, all_staff):
     id_to_emp = {}
     for s in all_staff:
@@ -134,7 +152,7 @@ def check_coverage(assignments, all_staff):
         return int(h) * 60 + int(m)
 
     problems = []
-    for day in range(1, 8):
+    for day in range(1, 31):
         date = f"2026-11-{day:02d}"
         for t in range(8 * 60, 22 * 60 + 30, 30):
             count = 0
@@ -143,6 +161,66 @@ def check_coverage(assignments, all_staff):
                     count += 1
             if count == 0:
                 problems.append(f"{date} {t // 60:02d}:{t % 60:02d} 社員がいません")
+    return problems
+
+
+#  【コード】編成案をチェックする(資格者が足りているか)
+def check_qualification(assignments, all_staff, rules):
+    id_to_qual = {}
+    for s in all_staff:
+        id_to_qual[s["staff_id"]] = s.get("qualification")   # 資格がない人は None
+
+    def to_min(t):
+        h, m = t.split(":")
+        return int(h) * 60 + int(m)
+
+    problems = []
+    for rule in rules:                                        # ルールが [] なら何もしない(スイッチOFF)
+        for day in range(1, 31):
+            date = f"2026-11-{day:02d}"
+            for t in range(to_min(rule["start"]), to_min(rule["end"]), 30):
+                count = 0
+                for a in assignments:
+                    if a["date"] == date and id_to_qual.get(a["staff_id"]) in rule["qualification"] and to_min(a["start"]) <= t < to_min(a["end"]):
+                        count += 1
+                if count < rule["min"]:
+                    problems.append(f"{date} {t // 60:02d}:{t % 60:02d} 資格者が{rule['min']}人未満です({count}人)")
+    return problems
+
+
+#  【コード】編成案をチェックする(パート・バイトが、申請のない日に入っていないか)
+def check_requests(assignments, all_staff):
+    id_to_staff = {}
+    for s in all_staff:
+        id_to_staff[s["staff_id"]] = s
+
+    problems = []
+    for a in assignments:
+        s = id_to_staff[a["staff_id"]]
+        if s["employment"] not in ("パート", "バイト"):
+            continue                                         # 社員はここでは見ない
+        ok_dates = []
+        for r in s["requests"]:
+            if "start" in r:                                 # 出たい日だけ(off の日は入れない)
+                ok_dates.append(r["date"])
+        if a["date"] not in ok_dates:
+            problems.append(f"{a['date']} ID{a['staff_id']}は申請のない日です")
+    return problems
+
+
+#  【コード】編成案をチェックする(22:30まで残るのは closing_ok の人だけ)
+def check_closing(assignments, all_staff):
+    id_to_staff = {}
+    for s in all_staff:
+        id_to_staff[s["staff_id"]] = s
+
+    problems = []
+    for a in assignments:
+        s = id_to_staff[a["staff_id"]]
+        if s["employment"] not in ("パート", "バイト"):
+            continue
+        if a["end"] > "22:00" and not s.get("closing_ok"):    # "22:30" > "22:00" は文字の順で正しく比べられる
+            problems.append(f"{a['date']} ID{a['staff_id']}は22:30まで残れません")
     return problems
 
 
@@ -160,6 +238,7 @@ def validate(state: State):
     else:
         # 検査ロジック実装
         problems = check_coverage(state["draft_store_shift"], state["llm_all_staff"])
+        problems = problems + check_qualification(state["draft_store_shift"], state["llm_all_staff"], QUALIFICATION_RULES)        
         if state["draft_store_shift"] == []:
             state["result"] = "problem_O"
         elif problems:
@@ -186,7 +265,6 @@ def validate(state: State):
             return {"result": state['result']}
 
 
-
 # 【分岐】検査結果に応じて、スタッフに連絡するか、自動編成を再度行うかを判断する
 def route_2(state) -> Literal["approve", "contact", "auto_draft", "manual_draft"]:
     if state["result"] == "valid":
@@ -199,7 +277,6 @@ def route_2(state) -> Literal["approve", "contact", "auto_draft", "manual_draft"
         return "auto_draft"
     else:
         return "manual_draft"
-
 
 
 # 【コード】手動編成
@@ -228,6 +305,7 @@ def approve(state):
     print("店長の承認を待っています...")
     decision = interrupt({"draft_store_shift": state["draft_store_shift"], "ask": "承認 | 却下"})
     return {"decision": decision}
+
 
 # 【返信】店長の選択
 def route_3(state) -> Command[Literal["finalize", "auto_draft"]]:
@@ -281,7 +359,7 @@ if __name__ == "__main__":
         saver.setup()
         graph = builder.compile(checkpointer=saver)
 
-        config = {"configurable": {"thread_id": "test_13"}}
+        config = {"configurable": {"thread_id": "test_qual_1"}}
         start = time.time()
 
         for chunk in graph.stream({"store_id": 101}, config, stream_mode="updates"):
