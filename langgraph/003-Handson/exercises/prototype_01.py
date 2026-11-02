@@ -73,7 +73,6 @@ STORE_SETTINGS = {
         ],               
         "shain_off_days": 9,                        # 社員の公休日数
     },
-    102: { ... },                                   # 別の店は、別の値
 }
 
 
@@ -170,13 +169,6 @@ def find_request(staff, date):    # staffのrequestsから、指定したdateの
     return None                   # 無ければ None を返す
 
 
-def hours_for(date):                            # その日の営業時間を返す。休業日は None
-    if date in BUSINESS_HOURS_BY_DATE:
-        return BUSINESS_HOURS_BY_DATE[date]
-    wd = datetime.date.fromisoformat(date).weekday()
-    return BUSINESS_HOURS_BY_WEEKDAY.get(wd, open_hours)
-
-
 def get_llm():                    # LLMのモデルを返す。テストのときは、ニセの LLM を返す
     global LLM
     if LLM is None:
@@ -186,11 +178,6 @@ def get_llm():                    # LLMのモデルを返す。テストのと�
 
 
 # 2-5) 【LLM】AIが編成案を作る
-def make_period_text():
-    return (f"【対象期間】{PERIOD['start']} から {PERIOD['days']}日間。"
-            f"営業時間は {BUSINESS_HOURS[0]}〜{BUSINESS_HOURS[1]}(準備と閉店作業をふくむ)。\n")
-
-
 # rules: LLMが編成案を作る際のプロンプト
 rules = """あなたは日本のシフト形式を熟知したシフト編成の補助です。
 提案だけを行い、最終確定は人(店長)が行います。
@@ -243,7 +230,8 @@ def auto_draft(state: State):
     """
     print("自動編成中...")
     state["return_count"] += 1
-    prompt = rules + make_qualification_text(QUALIFICATION_RULES) + make_days_text(SHAIN_OFF_DAYS) + make_headcount_text(MIN_HEADCOUNT) + make_problem_text(state.get("problems", [])) + "\n【スタッフのデータ(JSON)】\n" + json.dumps(state["llm_all_staff"], ensure_ascii=False)
+    store = STORE_SETTINGS[state["store_id"]]
+    prompt = rules + make_qualification_text(store["qualification_rules"]) + make_days_text(store["shain_off_days"]) + make_headcount_text(store["min_headcount"]) + make_problem_text(state.get("problems", [])) + "\n【スタッフのデータ(JSON)】\n" + json.dumps(state["llm_all_staff"], ensure_ascii=False)
     llm = get_llm()
     res = llm.invoke(prompt)    
     print(res.usage_metadata)
@@ -513,16 +501,17 @@ def validate(state: State):   # ルールを守っているか検査する
 
     else:
         # 検査ロジック実装
+        store = STORE_SETTINGS[state["store_id"]]
         draft = state["draft_store_shift"]
         staff = state["llm_all_staff"]
 
         problems = []
         problems += check_coverage(draft, staff)
-        problems += check_qualification(draft, staff, QUALIFICATION_RULES)
+        problems += check_qualification(draft, staff, store["qualification_rules"])
         problems += check_requests(draft, staff)
         problems += check_closing(draft, staff)
-        problems += check_shain_days(draft, staff, SHAIN_OFF_DAYS)
-        problems += check_headcount(draft, staff, MIN_HEADCOUNT)
+        problems += check_shain_days(draft, staff, store["shain_off_days"])
+        problems += check_headcount(draft, staff, store["min_headcount"])
 
         if state["draft_store_shift"] == []:
             state["result"] = "problem_O"
@@ -536,7 +525,7 @@ def validate(state: State):   # ルールを守っているか検査する
         # 【分岐】検査結果
         if state["result"] == "valid":
             print("編成案は有効です。")
-            shortage = make_shortage_report(MIN_HEADCOUNT, state["llm_all_staff"])
+            shortage = make_shortage_report(store["min_headcount"], state["llm_all_staff"])
             if shortage:
                 print("【人が足りない日(管理者に相談してください)】")
                 print("\n".join(shortage))
@@ -671,7 +660,7 @@ if __name__ == "__main__":
         saver.setup()
         graph = builder.compile(checkpointer=saver)
 
-        config = {"configurable": {"thread_id": "test_qual_5"}}        
+        config = {"configurable": {"thread_id": "test_qual_6"}}        
         start = time.time()
 
         for chunk in graph.stream({"store_id": 101}, config, stream_mode="updates"):
