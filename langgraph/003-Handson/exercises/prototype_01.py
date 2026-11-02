@@ -515,6 +515,9 @@ def validate(state: State):   # ルールを守っているか検査する
 
         if state["draft_store_shift"] == []:
             state["result"] = "problem_O"
+        elif problems and state["return_count"] >= state["upper_limit"]:
+            print("編成案の検査回数が上限に達しました。手動編成を行います。")
+            return {"result": "limit_reached", "problems": problems}
         elif problems:
             print(problems)
             state["result"] = "problem_O"
@@ -562,7 +565,9 @@ def route_2(state) -> Literal["approve", "contact", "auto_draft", "manual_draft"
 def manual_draft(state):
     print("手動編成中...")
     # 手動編成のロジックを実装する
-    return {"draft_store_shift": ["手動編成されたシフト案"]}
+    for problem in state.get("problems", [])[:5]:
+        print("未解決: ", problem)
+    return {}
 
 
 # 2-8) 【コード】人手が足りない日のLINE連絡
@@ -644,6 +649,7 @@ builder.add_conditional_edges("collect", route_1, {"skill_check": "skill_check",
 builder.add_edge("skill_check", "auto_draft")
 builder.add_edge("auto_draft", "validate")
 builder.add_conditional_edges("validate", route_2, {"approve": "approve", "contact": "contact", "auto_draft": "auto_draft", "manual_draft": "manual_draft"})
+builder.add_edge("manual_draft", "approve")
 builder.add_edge("approve", "route_3")
 builder.add_edge("finalize", "send_final_shift")
 builder.add_edge("send_final_shift", END)
