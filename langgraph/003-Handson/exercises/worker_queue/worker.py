@@ -97,7 +97,7 @@ def main():
             try:
                 run_graph(graph, case_id, store_id, event)                                                 # run_graph を呼ぶ(ここでLLMが動く)
             finally:
-                stop.set()                                                                                 # 終わったら(失敗しても)合図を止める                                                   # run_graph を呼ぶ(ここでLLMが動く)
+                stop.set()                                                                                                                                    # run_graph を呼ぶ(ここでLLMが動く)
             conn.execute("UPDATE queue SET status = 'done', done_at = now() WHERE id = %s", (job_id,))     # 終わったら、票をdoneにする
 
 
