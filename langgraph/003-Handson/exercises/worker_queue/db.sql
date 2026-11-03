@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS queue(
     case_id     INT NOT NULL REFERENCES cases(id),  -- どの案件に対するキューか
     event       TEXT NOT NULL,                      -- どの合図を出す予定か
     status      TEXT NOT NULL DEFAULT 'waiting',    -- キューの状態
-    locked_at   TIMESTAMPTZ,                        -- キューがロックされた時刻
+    heartbeat_at TIMESTAMPTZ,                       -- 最後に「生きている」と知らせた時刻
     done_at     TIMESTAMPTZ,                        -- キューが完了した時刻
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()  -- キューが作成された時刻
 );
