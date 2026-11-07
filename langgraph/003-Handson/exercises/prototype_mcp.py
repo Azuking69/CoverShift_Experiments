@@ -52,7 +52,7 @@ DRAFT_FILE = "month_draft.json"                               # LLM が返した
 PERIOD = {"start": "2026-11-01", "days": 30}                  # 対象期間の開始日と日数
 
 UPPER_LIMIT = 3                                               # 作り直しの上限(LLM は1回で約6〜10分)
-MODEL_NAME = "claude-sonnet-5-5"                              # LLMのモデル名
+MODEL_NAME = "claude-sonnet-4-6"                              # LLMのモデル名
 LLM = None                                                    # テストのときは、ここにニセの LLM を入れる
 
 
@@ -702,7 +702,7 @@ if __name__ == "__main__":
         saver.setup()
         graph = builder.compile(checkpointer=saver)
 
-        config = {"configurable": {"thread_id": "test_mcp_6"}}        
+        config = {"configurable": {"thread_id": "test_mcp_7"}}        
         start = time.time()
 
         for chunk in graph.stream({"store_id": 101}, config, stream_mode="updates"):
