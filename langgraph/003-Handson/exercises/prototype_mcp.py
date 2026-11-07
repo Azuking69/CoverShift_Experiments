@@ -27,7 +27,7 @@
 
 
 
-import os, json, time, datetime, asyncio
+import os, json, time, datetime, asyncio, re
 from typing import TypedDict, Literal
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
@@ -52,7 +52,7 @@ DRAFT_FILE = "month_draft.json"                               # LLM が返した
 PERIOD = {"start": "2026-11-01", "days": 30}                  # 対象期間の開始日と日数
 
 UPPER_LIMIT = 3                                               # 作り直しの上限(LLM は1回で約6〜10分)
-MODEL_NAME = "claude-sonnet-4-6"                              # LLMのモデル名
+MODEL_NAME = "claude-sonnet-5-5"                              # LLMのモデル名
 LLM = None                                                    # テストのときは、ここにニセの LLM を入れる
 
 
@@ -179,6 +179,26 @@ def get_llm():                    # LLMのモデルを返す。テストのと�
     return LLM
 
 
+def extract_json(text):           # LLMの返事から、完全なJSONを取り出す(後ろのブロックから探す)
+    blocks = re.findall(r"```(?:json)?\s*(.*?)```", text, re.S)
+    for b in reversed(blocks):
+        try:
+            d = json.loads(b)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(d, dict) and d.get("assignments"):
+            return d
+
+    s, e = text.rfind('{"assignments"'), text.rfind("}")      # 囲みがないとき
+    if s != -1 and e > s:
+        try:
+            d = json.loads(text[s:e + 1])
+            if isinstance(d, dict) and d.get("assignments"):
+                return d
+        except json.JSONDecodeError:
+            pass
+    raise RuntimeError("返事の中に完全なJSONが見つかりません。llm_raw_output.txt を見てください")
+
 
 # 2-5) 【LLM】AIが編成案を作る
 # rules: LLMが編成案を作る際のプロンプト
@@ -236,15 +256,28 @@ def auto_draft(state: State):
     store = STORE_SETTINGS[state["store_id"]]
     prompt = rules + make_qualification_text(store["qualification_rules"]) + make_days_text(store["shain_off_days"]) + make_headcount_text(store["min_headcount"]) + make_problem_text(state.get("problems", [])) + "\n【スタッフのデータ(JSON)】\n" + json.dumps(state["llm_all_staff"], ensure_ascii=False)
     llm = get_llm()
-    res = llm.invoke(prompt)    
+    t0 = time.time()
+    res = llm.invoke(prompt)
+    print(f"LLM呼び出し: {time.time() - t0:.0f}秒")
     print(res.usage_metadata)
     print(res.response_metadata.get("stop_reason"))
     text = ""
+    if isinstance(res.content, str):
+        text = res.content
+    else:
+        for block in res.content:
+            if isinstance(block, str):
+                text += block
+            elif isinstance(block, dict) and block.get("type") == "text":
+                text += block["text"]
 
-    for block in res.content:
-        if block["type"] == "text":
-            text = block["text"]
-    data = json.loads(text)
+    with open("llm_raw_output.txt", "w", encoding="utf-8") as f:
+        f.write(text)
+
+        print("返事の先頭:", repr(text[:100]))
+    print("返事の末尾:", repr(text[-100:]))
+
+    data = extract_json(text)
     print(f"編成の件数: {len(data['assignments'])}")
 
     with open("month_draft.json", "w", encoding="utf-8") as f:
@@ -669,7 +702,7 @@ if __name__ == "__main__":
         saver.setup()
         graph = builder.compile(checkpointer=saver)
 
-        config = {"configurable": {"thread_id": "test_mcp_1"}}        
+        config = {"configurable": {"thread_id": "test_mcp_6"}}        
         start = time.time()
 
         for chunk in graph.stream({"store_id": 101}, config, stream_mode="updates"):
