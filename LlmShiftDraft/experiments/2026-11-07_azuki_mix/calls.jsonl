@@ -7,3 +7,4 @@
 {"cond": "mix1_nothink_order", "pid": 72027, "stop": "end_turn", "sec": 90.4, "in": 11395, "out": 9002, "cache_read": 0, "cache_write": 0, "cost_usd": 0.1692}
 {"cond": "mix1_nothink_order", "pid": 72027, "stop": "end_turn", "sec": 85.7, "in": 23447, "out": 9174, "cache_read": 0, "cache_write": 0, "cost_usd": 0.208}
 {"cond": "mix1_nothink_order", "pid": 72027, "stop": "end_turn", "sec": 89.4, "in": 21865, "out": 9243, "cache_read": 0, "cache_write": 0, "cost_usd": 0.2042}
+{"cond": "mix2_55", "pid": 3640, "stop": "end_turn", "sec": 257.6, "in": 19999, "out": 41208, "cache_read": 0, "cache_write": 0, "cost_usd": 0.4521}
