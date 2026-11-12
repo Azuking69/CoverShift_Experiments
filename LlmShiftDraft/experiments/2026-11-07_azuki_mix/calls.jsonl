@@ -1,0 +1,9 @@
+{"cond": "mix2", "pid": 38799, "stop": "max_tokens", "sec": 942.7, "in": 18777, "out": 64000, "cache_read": 0, "cache_write": 0, "cost_usd": 1.0163}
+{"cond": "mix1", "pid": 38798, "stop": "max_tokens", "sec": 998.6, "in": 11173, "out": 64000, "cache_read": 0, "cache_write": 0, "cost_usd": 0.9935}
+{"cond": "mix1_nothink", "pid": 67769, "stop": "end_turn", "sec": 92.1, "in": 11173, "out": 9443, "cache_read": 0, "cache_write": 0, "cost_usd": 0.1752}
+{"cond": "mix1_nothink", "pid": 67769, "stop": "end_turn", "sec": 92.9, "in": 24149, "out": 9629, "cache_read": 0, "cache_write": 0, "cost_usd": 0.2169}
+{"cond": "mix1_nothink", "pid": 67769, "stop": "end_turn", "sec": 94.8, "in": 23627, "out": 9662, "cache_read": 0, "cache_write": 0, "cost_usd": 0.2158}
+{"cond": "mix1_55", "pid": 70017, "stop": "end_turn", "sec": 192.9, "in": 12049, "out": 33816, "cache_read": 0, "cache_write": 0, "cost_usd": 0.3623}
+{"cond": "mix1_nothink_order", "pid": 72027, "stop": "end_turn", "sec": 90.4, "in": 11395, "out": 9002, "cache_read": 0, "cache_write": 0, "cost_usd": 0.1692}
+{"cond": "mix1_nothink_order", "pid": 72027, "stop": "end_turn", "sec": 85.7, "in": 23447, "out": 9174, "cache_read": 0, "cache_write": 0, "cost_usd": 0.208}
+{"cond": "mix1_nothink_order", "pid": 72027, "stop": "end_turn", "sec": 89.4, "in": 21865, "out": 9243, "cache_read": 0, "cache_write": 0, "cost_usd": 0.2042}
